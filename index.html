@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>用户反馈中心</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Microsoft YaHei', sans-serif;
+        }
+
+        body {
+            background-color: #f5f7fa;
+            padding: 20px;
+        }
+
+        .feedback-container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 30px;
+            font-size: 24px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #555;
+            font-weight: 500;
+        }
+
+        input[type="text"], textarea {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 16px;
+            resize: vertical;
+            outline: none;
+        }
+
+        input[type="text"]:focus, textarea:focus {
+            border-color: #409eff;
+            box-shadow: 0 0 0 2px rgba(64, 158, 255, 0.2);
+        }
+
+        textarea {
+            min-height: 150px;
+        }
+
+        .upload-area {
+            border: 2px dashed #ddd;
+            border-radius: 6px;
+            padding: 30px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .upload-area:hover {
+            border-color: #409eff;
+            background-color: #f8f9fa;
+        }
+
+        .upload-icon {
+            font-size: 40px;
+            color: #999;
+            margin-bottom: 10px;
+        }
+
+        .upload-text {
+            color: #666;
+            margin-bottom: 5px;
+        }
+
+        .upload-tip {
+            color: #999;
+            font-size: 12px;
+        }
+
+        #file-input {
+            display: none;
+        }
+
+        .preview-container {
+            margin-top: 20px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .preview-item {
+            width: 100px;
+            height: 100px;
+            border-radius: 6px;
+            overflow: hidden;
+            position: relative;
+            border: 1px solid #eee;
+        }
+
+        .preview-item img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .preview-remove {
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            width: 20px;
+            height: 20px;
+            background-color: rgba(0, 0, 0, 0.5);
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 12px;
+        }
+
+        .submit-btn {
+            width: 100%;
+            padding: 14px;
+            background-color: #409eff;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        .submit-btn:hover {
+            background-color: #337ecc;
+        }
+
+        .submit-btn:disabled {
+            background-color: #b3d4fc;
+            cursor: not-allowed;
+        }
+
+        .success-message {
+            text-align: center;
+            color: #67c23a;
+            margin-top: 20px;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="feedback-container">
+        <h1>用户反馈中心</h1>
+        
+        <form id="feedback-form">
+            <!-- 移除了反馈标题部分 -->
+            <div class="form-group">
+                <label for="feedback-content">反馈内容</label>
+                <textarea id="feedback-content" placeholder="请详细描述您遇到的问题或建议（必填）" required></textarea>
+            </div>
+
+            <div class="form-group">
+                <label>上传图片（可选）</label>
+                <div class="upload-area" id="upload-area">
+                    <div class="upload-icon">📷</div>
+                    <div class="upload-text">点击或拖拽文件至此处上传</div>
+                    <div class="upload-tip">支持JPG、PNG格式，单张图片不超过5MB，最多上传3张</div>
+                    <input type="file" id="file-input" accept="image/jpeg,image/png" multiple>
+                </div>
+                
+                <div class="preview-container" id="preview-container"></div>
+            </div>
+
+            <button type="submit" class="submit-btn" id="submit-btn">提交反馈</button>
+            <div class="success-message" id="success-message">✅ 反馈提交成功！我们会尽快处理您的问题。</div>
+        </form>
+    </div>
+
+    <script>
+        // 获取DOM元素
+        const uploadArea = document.getElementById('upload-area');
+        const fileInput = document.getElementById('file-input');
+        const previewContainer = document.getElementById('preview-container');
+        const feedbackForm = document.getElementById('feedback-form');
+        const submitBtn = document.getElementById('submit-btn');
+        const successMessage = document.getElementById('success-message');
+        
+        // 存储已上传的图片文件
+        let uploadedFiles = [];
+
+        // 点击上传区域触发文件选择
+        uploadArea.addEventListener('click', () => {
+            fileInput.click();
+        });
+
+        // 处理文件选择
+        fileInput.addEventListener('change', (e) => {
+            const files = e.target.files;
+            handleFiles(files);
+        });
+
+        // 处理拖拽上传
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.style.borderColor = '#409eff';
+            uploadArea.style.backgroundColor = '#f0f7ff';
+        });
+
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.style.borderColor = '#ddd';
+            uploadArea.style.backgroundColor = 'transparent';
+        });
+
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.style.borderColor = '#ddd';
+            uploadArea.style.backgroundColor = 'transparent';
+            const files = e.dataTransfer.files;
+            handleFiles(files);
+        });
+
+        // 处理选中的文件
+        function handleFiles(files) {
+            // 检查文件数量
+            if (uploadedFiles.length + files.length > 3) {
+                alert('最多只能上传3张图片！');
+                return;
+            }
+
+            // 遍历文件
+            Array.from(files).forEach(file => {
+                // 检查文件类型
+                if (!file.type.startsWith('image/')) {
+                    alert('请上传图片格式的文件（JPG/PNG）！');
+                    return;
+                }
+
+                // 检查文件大小（5MB）
+                if (file.size > 5 * 1024 * 1024) {
+                    alert('单张图片大小不能超过5MB！');
+                    return;
+                }
+
+                // 添加到已上传文件列表
+                uploadedFiles.push(file);
+
+                // 创建预览图
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const previewItem = document.createElement('div');
+                    previewItem.className = 'preview-item';
+                    previewItem.dataset.index = uploadedFiles.length - 1;
+                    
+                    previewItem.innerHTML = `
+                        <img src="${e.target.result}" alt="预览图">
+                        <span class="preview-remove" data-index="${uploadedFiles.length - 1}">×</span>
+                    `;
+                    
+                    previewContainer.appendChild(previewItem);
+
+                    // 绑定删除事件
+                    const removeBtn = previewItem.querySelector('.preview-remove');
+                    removeBtn.addEventListener('click', removePreview);
+                };
+                reader.readAsDataURL(file);
+            });
+
+            // 清空文件输入
+            fileInput.value = '';
+        }
+
+        // 删除预览图
+        function removePreview(e) {
+            const index = parseInt(e.target.dataset.index);
+            // 从数组中移除
+            uploadedFiles.splice(index, 1);
+            // 从DOM中移除
+            e.target.parentElement.remove();
+            
+            // 更新剩余预览图的索引
+            const previewItems = previewContainer.querySelectorAll('.preview-item');
+            previewItems.forEach((item, newIndex) => {
+                item.dataset.index = newIndex;
+                item.querySelector('.preview-remove').dataset.index = newIndex;
+            });
+        }
+
+        // 表单提交处理
+        feedbackForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            
+            // 禁用提交按钮防止重复提交
+            submitBtn.disabled = true;
+            submitBtn.textContent = '提交中...';
+
+            // 获取表单数据（移除了title相关代码）
+            const formData = new FormData();
+            formData.append('content', document.getElementById('feedback-content').value);
+            
+            // 添加图片文件
+            uploadedFiles.forEach((file, index) => {
+                formData.append(`images[${index}]`, file);
+            });
+
+            // 模拟提交到服务器（实际项目中替换为真实接口）
+            setTimeout(() => {
+                // 显示成功提示
+                successMessage.style.display = 'block';
+                // 重置表单
+                feedbackForm.reset();
+                previewContainer.innerHTML = '';
+                uploadedFiles = [];
+                // 恢复提交按钮
+                submitBtn.disabled = false;
+                submitBtn.textContent = '提交反馈';
+                
+                // 3秒后隐藏成功提示
+                setTimeout(() => {
+                    successMessage.style.display = 'none';
+                }, 3000);
+            }, 1500);
+
+            // 实际项目中使用fetch发送请求
+            /*
+            fetch('/api/feedback', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    successMessage.style.display = 'block';
+                    feedbackForm.reset();
+                    previewContainer.innerHTML = '';
+                    uploadedFiles = [];
+                } else {
+                    alert('提交失败：' + data.message);
+                }
+                submitBtn.disabled = false;
+                submitBtn.textContent = '提交反馈';
+            })
+            .catch(error => {
+                alert('网络错误，请重试！');
+                submitBtn.disabled = false;
+                submitBtn.textContent = '提交反馈';
+            });
+            */
+        });
+    </script>
+</body>
+</html>
